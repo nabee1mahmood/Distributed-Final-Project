@@ -1,0 +1,7 @@
+To allow the nginx server and cluster to communicate with each other:
+docker network add minikube nginx-nginx-1
+docker network add minikube nginx-php-1
+
+This adds all 3 containers to the docker network that is
+hosting the cluster, making the cluster reachable from the
+nginx containers.
