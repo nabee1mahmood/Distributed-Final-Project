@@ -1,71 +1,154 @@
 <?php
-// Include read.php, which returns an array of items
-$items = include __DIR__ . '/read.php';
+// crud.php
+
+// Include read.php to fetch CouchDB data
+$items = include 'read.php';
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRUD Front Page</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
-        h1 { text-align: center; }
-        table { width: 80%; margin: 20px auto; border-collapse: collapse; background-color: white; }
-        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-        th { background-color: #007BFF; color: white; }
-        button { padding: 5px 10px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; color: white; }
-        .create { background-color: #28a745; }
-        .update { background-color: #ffc107; color: black; }
-        .delete { background-color: #dc3545; }
-        form { display: inline; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRUD Dashboard</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* Reset & font */
+    body {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        background-color: #f2f2f5;
+        color: #1d1d1f;
+    }
+    h1 {
+        text-align: center;
+        font-weight: 700;
+        margin-top: 60px;
+        font-size: 2.2em;
+        color: #1d1d1f;
+    }
+
+    /* Container */
+    .container {
+        max-width: 900px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        padding: 40px;
+    }
+
+    /* Buttons */
+    .button {
+        display: inline-block;
+        padding: 10px 25px;
+        font-weight: 600;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        text-decoration: none;
+        font-size: 0.95em;
+    }
+    .create {
+        background: #0071e3;
+        color: white;
+        margin-bottom: 30px;
+    }
+    .create:hover {
+        background: #005bb5;
+    }
+    .update {
+        background: #ff9500;
+        color: white;
+    }
+    .update:hover {
+        background: #cc7a00;
+    }
+    .delete {
+        background: #ff3b30;
+        color: white;
+    }
+    .delete:hover {
+        background: #cc2a24;
+    }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95em;
+    }
+    th, td {
+        text-align: left;
+        padding: 15px 20px;
+    }
+    th {
+        font-weight: 600;
+        background-color: #f7f7f8;
+        color: #1d1d1f;
+    }
+    tr {
+        border-bottom: 1px solid #e0e0e0;
+    }
+    tr:last-child {
+        border-bottom: none;
+    }
+
+    /* Actions */
+    td form {
+        display: inline-block;
+    }
+</style>
 </head>
 <body>
 
-<h1>CRUD Front Page</h1>
+<h1>CRUD Dashboard</h1>
 
-<div style="text-align:center; margin-bottom:20px;">
-    <form method="post" action="create.php">
-        <button class="create">Create New</button>
-    </form>
-</div>
+<div class="container">
+    <div style="text-align:center;">
+        <form method="post" action="create.php">
+            <button class="button create">Create New</button>
+        </form>
+    </div>
 
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php if (!empty($items)): ?>
-            <?php foreach($items as $item): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($item['id']); ?></td>
-                    <td><?php echo htmlspecialchars($item['name']); ?></td>
-                    <td><?php echo htmlspecialchars($item['email']); ?></td>
-                    <td>
-                        <form method="post" action="update.php" style="display:inline;">
-                            <input type="hidden" name="id" value="<?php echo $item['id']; ?>">
-                            <button class="update">Update</button>
-                        </form>
-                        <form method="post" action="delete.php" style="display:inline;">
-                            <input type="hidden" name="id" value="<?php echo $item['id']; ?>">
-                            <button class="delete" onclick="return confirm('Are you sure?')">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        <?php else: ?>
+    <table>
+        <thead>
             <tr>
-                <td colspan="4">No data found or connection error.</td>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Actions</th>
             </tr>
-        <?php endif; ?>
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            <?php if (!empty($items)): ?>
+                <?php foreach($items as $item): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($item['id']); ?></td>
+                        <td><?php echo htmlspecialchars($item['name']); ?></td>
+                        <td><?php echo htmlspecialchars($item['email']); ?></td>
+                        <td>
+                            <form method="post" action="update.php">
+                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($item['id']); ?>">
+                                <button class="button update">Update</button>
+                            </form>
+                            <form method="post" action="delete.php" onsubmit="return confirm('Are you sure?');">
+                                <input type="hidden" name="id" value="<?php echo htmlspecialchars($item['id']); ?>">
+                                <button class="button delete">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="4" style="text-align:center; padding: 30px;">No records found.</td>
+                </tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</div>
 
 </body>
 </html>
