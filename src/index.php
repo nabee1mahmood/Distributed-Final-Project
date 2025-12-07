@@ -50,6 +50,7 @@ $items = include 'read.php';
         transition: all 0.2s ease-in-out;
         text-decoration: none;
         font-size: 0.95em;
+        margin-top: 20px;
     }
     .create {
         background: #0071e3;
