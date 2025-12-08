@@ -1,4 +1,5 @@
 <?php
+// CouchDB connection info
 $url = "http://admin:admin@192.168.49.2:30084/testdb/_all_docs?include_docs=true";
 
 $ch = curl_init($url);
@@ -15,12 +16,17 @@ if ($response !== false) {
         foreach ($data['rows'] as $row) {
             $doc = $row['doc'];
             $items[] = [
-                'id'    => $doc['_id'],
-                'name'  => $doc['name'] ?? '',
-                'email' => $doc['email'] ?? ''
+                'id'         => $doc['_id'],
+                'rig'        => $doc['rig'] ?? '',
+                'equipment'  => $doc['equipment'] ?? '',
+                'status'     => $doc['status'] ?? '',
+                'technician' => $doc['technician'] ?? '',
+                'notes'      => $doc['notes'] ?? '',
+                'timestamp'  => $doc['timestamp'] ?? ''
             ];
         }
     }
 }
 
 return $items;
+?>
