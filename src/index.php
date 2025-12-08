@@ -1,6 +1,4 @@
 <?php
-// crud.php
-
 // Include read.php to fetch CouchDB data
 $items = include 'read.php';
 ?>
@@ -10,116 +8,102 @@ $items = include 'read.php';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CRUD Dashboard</title>
-<!-- Google Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Oil Rig Maintenance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-    /* Reset & font */
-    body {
-        margin: 0;
-        font-family: 'Inter', sans-serif;
-        background-color: #f2f2f5;
-        color: #1d1d1f;
-    }
-    h1 {
-        text-align: center;
-        font-weight: 700;
-        margin-top: 60px;
-        font-size: 2.2em;
-        color: #1d1d1f;
-    }
+body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+}
 
-    /* Container */
-    .container {
-        max-width: 900px;
-        margin: 40px auto;
-        background: #fff;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        padding: 40px;
-    }
+h1 {
+    text-align: center;
+    margin-top: 50px;
+    font-size: 2.5em;
+    color: #f2a900; /* Gold accent for oil rig feel */
+    letter-spacing: 1px;
+}
 
-    /* Buttons */
-    .button {
-        display: inline-block;
-        padding: 10px 25px;
-        font-weight: 600;
-        border-radius: 12px;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease-in-out;
-        text-decoration: none;
-        font-size: 0.95em;
-        margin-top: 20px;
-    }
-    .create {
-        background: #0071e3;
-        color: white;
-        margin-bottom: 30px;
-    }
-    .create:hover {
-        background: #005bb5;
-    }
-    .update {
-        background: #ff9500;
-        color: white;
-    }
-    .update:hover {
-        background: #cc7a00;
-    }
-    .delete {
-        background: #ff3b30;
-        color: white;
-    }
-    .delete:hover {
-        background: #cc2a24;
-    }
+.container {
+    max-width: 1100px;
+    margin: 40px auto;
+    background-color: #1f1f1f;
+    border-radius: 16px;
+    padding: 30px 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
 
-    /* Table */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.95em;
-    }
-    th, td {
-        text-align: left;
-        padding: 15px 20px;
-    }
-    th {
-        font-weight: 600;
-        background-color: #f7f7f8;
-        color: #1d1d1f;
-    }
-    tr {
-        border-bottom: 1px solid #e0e0e0;
-    }
-    tr:last-child {
-        border-bottom: none;
-    }
+.button {
+    display: inline-block;
+    padding: 10px 25px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 500;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: 0.2s ease-in-out;
+    margin: 5px 0;
+}
 
-    /* Actions */
-    td form {
-        display: inline-block;
-    }
+.create { background-color: #f2a900; color: #121212; }
+.create:hover { background-color: #d18e00; }
+
+.update { background-color: #0071e3; color: #fff; }
+.update:hover { background-color: #005bb5; }
+
+.delete { background-color: #ff3b30; color: #fff; }
+.delete:hover { background-color: #cc2a24; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 0.95em;
+    color: #e0e0e0;
+}
+
+th, td {
+    text-align: left;
+    padding: 12px 15px;
+}
+
+th {
+    background-color: #2c2c2c;
+    font-weight: 600;
+}
+
+tr {
+    border-bottom: 1px solid #333;
+}
+
+tr:nth-child(even) { background-color: #1a1a1a; }
+
+td form {
+    display: inline-block;
+}
 </style>
 </head>
 <body>
 
-<h1>CRUD Dashboard</h1>
+<h1>Oil Rig Maintenance Dashboard</h1>
 
 <div class="container">
     <div style="text-align:center;">
         <form method="post" action="create.php">
-            <button class="button create">Create New</button>
+            <button class="button create">Add Maintenance Record</button>
         </form>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
+                <th>Rig</th>
+                <th>Equipment</th>
+                <th>Status</th>
+                <th>Technician</th>
+                <th>Timestamp</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -127,9 +111,11 @@ $items = include 'read.php';
             <?php if (!empty($items)): ?>
                 <?php foreach($items as $item): ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($item['id']); ?></td>
-                        <td><?php echo htmlspecialchars($item['name']); ?></td>
-                        <td><?php echo htmlspecialchars($item['email']); ?></td>
+                        <td><?php echo htmlspecialchars($item['rig']); ?></td>
+                        <td><?php echo htmlspecialchars($item['equipment']); ?></td>
+                        <td><?php echo htmlspecialchars($item['status']); ?></td>
+                        <td><?php echo htmlspecialchars($item['technician']); ?></td>
+                        <td><?php echo htmlspecialchars($item['timestamp']); ?></td>
                         <td>
                             <form method="post" action="update.php">
                                 <input type="hidden" name="id" value="<?php echo htmlspecialchars($item['id']); ?>">
@@ -144,7 +130,7 @@ $items = include 'read.php';
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="4" style="text-align:center; padding: 30px;">No records found.</td>
+                    <td colspan="6" style="text-align:center; padding: 30px;">No records found.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
