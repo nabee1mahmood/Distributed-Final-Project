@@ -3,63 +3,61 @@
 $url = "http://admin:admin@192.168.49.2:30084/testdb";
 
 $message = '';
+$doc = null;
+
+// Get the document ID from POST
 $id = $_POST['id'] ?? '';
 
-// Load the document
-$doc = null;
-$rev = null;
-
-if ($id) {
+// If form submitted with updated data
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])) {
+    $id = $_POST['id'];
+    // Fetch current revision
     $ch = curl_init("$url/$id");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     $response = curl_exec($ch);
+    $doc = json_decode($response, true);
+    $rev = $doc['_rev'] ?? null;
 
-    if ($response !== false) {
-        $doc = json_decode($response, true);
-        $rev = $doc['_rev'];
-    }
-}
-
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update'])) {
-    $rig        = $_POST['rig'] ?? '';
-    $equipment  = $_POST['equipment'] ?? '';
-    $status     = $_POST['status'] ?? '';
-    $technician = $_POST['technician'] ?? '';
-    $notes      = $_POST['notes'] ?? '';
-    $timestamp  = $_POST['timestamp'] ?? date('c');
-
-    if ($rig && $equipment && $status && $technician) {
-        $updatedDoc = json_encode([
-            "_id"       => $id,
-            "_rev"      => $rev,
-            "rig"       => $rig,
-            "equipment" => $equipment,
-            "status"    => $status,
-            "technician"=> $technician,
-            "notes"     => $notes,
-            "timestamp" => $timestamp
-        ]);
+    if ($rev) {
+        // Prepare updated document
+        $updatedDoc = [
+            "_id" => $id,
+            "_rev" => $rev,
+            "rig" => $_POST['rig'],
+            "equipment" => $_POST['equipment'],
+            "status" => $_POST['status'],
+            "technician" => $_POST['technician'],
+            "timestamp" => $_POST['timestamp']
+        ];
 
         $ch = curl_init("$url/$id");
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($updatedDoc));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $updatedDoc);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-
         $updateResponse = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $updateCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 201 || $httpCode === 200) {
-            header("Location: crud.php");
-            exit;
+        if ($updateCode === 201) {
+            $message = "✅ Document updated successfully!";
+            header("Refresh:2; url=index.php");
         } else {
-            $message = "❌ Update failed: $updateResponse";
+            $message = "❌ Failed to update document. Response: $updateResponse";
         }
     } else {
-        $message = "⚠ Rig, Equipment, Status, and Technician cannot be empty.";
+        $message = "⚠ Could not fetch document revision.";
     }
+} elseif ($id) {
+    // Fetch document for editing
+    $ch = curl_init("$url/$id");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    $doc = json_decode($response, true);
+    if (!$doc) {
+        $message = "⚠ Document not found.";
+    }
+} else {
+    $message = "⚠ No document ID provided.";
 }
 ?>
 
@@ -68,93 +66,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update'])) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Update Maintenance Record</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Update Document</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 body {
     margin: 0;
-    font-family: 'Inter', sans-serif;
-    background: #f2f2f5;
+    font-family: 'Roboto', sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
 }
+
 .card {
-    background: white;
+    background-color: #1f1f1f;
     padding: 40px;
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-    width: 450px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    max-width: 600px;
+    width: 100%;
     text-align: center;
 }
-input, textarea, select {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: 1px solid #ccc;
-    font-size: 0.95em;
+
+h2 {
+    font-weight: 700;
+    margin-bottom: 30px;
+    font-size: 1.8em;
+    color: #f2a900; /* gold accent */
 }
-textarea {
-    resize: vertical;
-}
-button {
-    margin-top: 20px;
-    width: 100%;
-    padding: 12px;
-    background: #ff9500;
-    border: none;
-    border-radius: 10px;
-    color: white;
+
+.message {
     font-weight: 600;
-    cursor: pointer;
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    color: #ff3b30;
 }
-button:hover { background: #cc7a00; }
-a {
+
+form {
+    text-align: left;
+}
+
+label {
     display: block;
-    margin-top: 20px;
-    color: #0071e3;
-    font-weight: 600;
-    text-decoration: none;
+    margin-top: 15px;
+    font-weight: 500;
+    color: #e0e0e0;
 }
-a:hover { color: #005bb5; }
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+}
+
+.button {
+    display: inline-block;
+    padding: 10px 25px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 500;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: 0.2s ease-in-out;
+    margin-top: 20px;
+}
+
+.update { background-color: #0071e3; color: #fff; }
+.update:hover { background-color: #005bb5; }
+
+.back { background-color: #f2a900; color: #121212; }
+.back:hover { background-color: #d18e00; }
 </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Update Maintenance Record</h2>
-
-    <?php if ($doc): ?>
-        <form method="post">
-            <input type="hidden" name="id" value="<?php echo htmlspecialchars($id); ?>">
-
-            <input type="text" name="rig" value="<?php echo htmlspecialchars($doc['rig'] ?? ''); ?>" placeholder="Rig Name" required>
-            <input type="text" name="equipment" value="<?php echo htmlspecialchars($doc['equipment'] ?? ''); ?>" placeholder="Equipment" required>
-            
-            <select name="status" required>
-                <option value="">Select Status</option>
-                <?php
-                $statuses = ['Operational', 'Maintenance', 'Offline', 'Inspection'];
-                foreach ($statuses as $s) {
-                    $selected = ($doc['status'] ?? '') === $s ? 'selected' : '';
-                    echo "<option value='$s' $selected>$s</option>";
-                }
-                ?>
-            </select>
-
-            <input type="text" name="technician" value="<?php echo htmlspecialchars($doc['technician'] ?? ''); ?>" placeholder="Technician" required>
-            <textarea name="notes" placeholder="Notes"><?php echo htmlspecialchars($doc['notes'] ?? ''); ?></textarea>
-            <input type="datetime-local" name="timestamp" value="<?php echo htmlspecialchars(date('Y-m-d\TH:i', strtotime($doc['timestamp'] ?? 'now'))); ?>">
-
-            <button type="submit" name="update">Update</button>
-        </form>
-    <?php else: ?>
-        <p>⚠ Unable to load document.</p>
+    <h2>Update Document</h2>
+    <?php if ($message): ?>
+        <p class="message"><?php echo htmlspecialchars($message); ?></p>
     <?php endif; ?>
 
-    <a href="crud.php">← Back to Dashboard</a>
+    <?php if ($doc): ?>
+        <form method="post" action="update.php">
+            <input type="hidden" name="id" value="<?php echo htmlspecialchars($doc['_id']); ?>">
+
+            <label for="rig">Rig</label>
+            <input type="text" id="rig" name="rig" value="<?php echo htmlspecialchars($doc['rig'] ?? ''); ?>">
+
+            <label for="equipment">Equipment</label>
+            <input type="text" id="equipment" name="equipment" value="<?php echo htmlspecialchars($doc['equipment'] ?? ''); ?>">
+
+            <label for="status">Status</label>
+            <input type="text" id="status" name="status" value="<?php echo htmlspecialchars($doc['status'] ?? ''); ?>">
+
+            <label for="technician">Technician</label>
+            <input type="text" id="technician" name="technician" value="<?php echo htmlspecialchars($doc['technician'] ?? ''); ?>">
+
+            <label for="timestamp">Timestamp</label>
+            <input type="text" id="timestamp" name="timestamp" value="<?php echo htmlspecialchars($doc['timestamp'] ?? ''); ?>">
+
+            <button class="button update" type="submit">Save Changes</button>
+        </form>
+    <?php endif; ?>
+
+    <form method="get" action="index.php">
+        <button class="button back">← Back to Dashboard</button>
+    </form>
 </div>
 
 </body>

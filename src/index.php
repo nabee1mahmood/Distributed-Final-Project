@@ -44,7 +44,7 @@ h1 {
     font-size: 0.95em;
     cursor: pointer;
     transition: 0.2s ease-in-out;
-    margin: 5px 0;
+    margin: 5px 5px;
 }
 
 .create { background-color: #f2a900; color: #121212; }
@@ -55,6 +55,9 @@ h1 {
 
 .delete { background-color: #ff3b30; color: #fff; }
 .delete:hover { background-color: #cc2a24; }
+
+.cluster { background-color: #6c63ff; color: #fff; }
+.cluster:hover { background-color: #4b42cc; }
 
 table {
     width: 100%;
@@ -91,8 +94,11 @@ td form {
 
 <div class="container">
     <div style="text-align:center;">
-        <form method="post" action="create.php">
+        <form method="post" action="create.php" style="display:inline-block;">
             <button class="button create">Add Maintenance Record</button>
+        </form>
+        <form method="get" action="cluster.php" style="display:inline-block;">
+            <button class="button cluster">View Cluster</button>
         </form>
     </div>
 
