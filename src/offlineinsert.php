@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline Insert via PouchDB</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; font-family:'Roboto',sans-serif; background:#121212; color:#e0e0e0; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+.card { background:#1f1f1f; padding:40px; border-radius:16px; width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.5); text-align:center; }
+h2 { color:#00c853; margin-bottom:20px; }
+input, select, textarea { width:100%; padding:12px; margin:8px 0; border-radius:10px; border:1px solid #333; background:#2c2c2c; color:#e0e0e0; font-size:0.95em; }
+textarea { resize: vertical; }
+button { margin-top:15px; width:100%; padding:12px; border:none; border-radius:10px; background:#00c853; color:#121212; font-weight:500; cursor:pointer; }
+button:hover { background:#009624; }
+a { display:block; margin-top:20px; color:#0071e3; text-decoration:none; font-weight:500; }
+a:hover { color:#005bb5; }
+.message { margin-top:15px; font-size:0.95em; color:#ffb74d; }
+</style>
+</head>
+<body>
+
+<div class="card">
+<h2>Add Record via PouchDB (Offline‑First)</h2>
+
+<form id="pouchForm">
+    <input type="text" name="rig" placeholder="Rig Name" required>
+    <input type="text" name="equipment" placeholder="Equipment" required>
+    <select name="status" required>
+        <option value="">Select Status</option>
+        <option value="Operational">Operational</option>
+        <option value="Maintenance">Maintenance</option>
+        <option value="Offline">Offline</option>
+        <option value="Inspection">Inspection</option>
+    </select>
+    <input type="text" name="technician" placeholder="Technician" required>
+    <textarea name="notes" placeholder="Notes"></textarea>
+    <input type="datetime-local" name="timestamp" value="<?php echo date('Y-m-d\TH:i'); ?>">
+
+    <button type="submit">Insert Offline</button>
+</form>
+
+<div id="result" class="message"></div>
+
+<a href="index.php">← Back to Dashboard</a>
+</div>
+
+<!-- Load PouchDB -->
+<script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+<script>
+const localDB = new PouchDB('testdb');
+const remoteDB = new PouchDB('http://admin:admin@localhost:8080/couchdb/testdb');
+
+// Continuous sync
+localDB.sync(remoteDB, { live: true, retry: true })
+    .on('change', info => console.log('Change detected:', info))
+    .on('paused', () => console.log('Replication paused'))
+    .on('active', () => console.log('Replication resumed'))
+    .on('error', err => console.error('Sync error:', err));
+
+document.getElementById('pouchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const doc = {
+        _id: new Date().toISOString(),
+        rig: form.rig.value,
+        equipment: form.equipment.value,
+        status: form.status.value,
+        technician: form.technician.value,
+        notes: form.notes.value,
+        timestamp: form.timestamp.value
+    };
+    try {
+        await localDB.put(doc);
+        document.getElementById('result').textContent = "✅ Record stored locally. It will sync when CouchDB is reachable.";
+        form.reset();
+    } catch (err) {
+        document.getElementById('result').textContent = "❌ Error inserting record: " + err;
+    }
+});
+</script>
+
+</body>
+</html>
