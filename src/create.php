@@ -1,5 +1,9 @@
 <?php
-$url = "http://admin:admin@192.168.49.2:30084/testdb";
+// CouchDB cluster connection info
+$couchHosts = ["couch1", "couch2", "couch3"]; // service names from docker-compose.yml
+$couchPort  = "5984";
+$dbName     = "testdb";
+
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,29 +16,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($rig && $equipment && $status && $technician) {
         $data = json_encode([
-            "rig"       => $rig,
-            "equipment" => $equipment,
-            "status"    => $status,
-            "technician"=> $technician,
-            "notes"     => $notes,
-            "timestamp" => $timestamp
+            "rig"        => $rig,
+            "equipment"  => $equipment,
+            "status"     => $status,
+            "technician" => $technician,
+            "notes"      => $notes,
+            "timestamp"  => $timestamp
         ]);
 
-        $ch = curl_init("$url");
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        $success = false;
+        $lastResponse = '';
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        // Try each CouchDB host until one succeeds
+        foreach ($couchHosts as $host) {
+            $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}";
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 
-        if ($httpCode === 201) {
-            header("Location: index.php");
-            exit;
-        } else {
-            $message = "❌ Failed to create record: $response";
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($httpCode === 201) {
+                $success = true;
+                header("Location: index.php");
+                exit;
+            } else {
+                $lastResponse = $response;
+            }
+        }
+
+        if (!$success) {
+            $message = "❌ Failed to create record on all nodes. Last response: " . htmlspecialchars($lastResponse);
         }
     } else {
         $message = "⚠ Rig, Equipment, Status, and Technician are required!";
@@ -67,7 +83,7 @@ a:hover { color:#005bb5; }
 <div class="card">
 <h2>Add Maintenance Record</h2>
 
-<?php if($message): ?><p class="message"><?php echo htmlspecialchars($message); ?></p><?php endif; ?>
+<?php if($message): ?><p class="message"><?php echo $message; ?></p><?php endif; ?>
 
 <form method="post">
     <input type="text" name="rig" placeholder="Rig Name" required>

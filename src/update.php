@@ -1,6 +1,8 @@
 <?php
-// CouchDB connection info
-$url = "http://admin:admin@192.168.49.2:30084/testdb";
+// CouchDB cluster connection info
+$couchHosts = ["couch1", "couch2", "couch3"]; // service names from docker-compose.yml
+$couchPort  = "5984";
+$dbName     = "testdb";
 
 $message = '';
 $doc = null;
@@ -11,48 +13,84 @@ $id = $_POST['id'] ?? '';
 // If form submitted with updated data
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])) {
     $id = $_POST['id'];
-    // Fetch current revision
-    $ch = curl_init("$url/$id");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($ch);
-    $doc = json_decode($response, true);
-    $rev = $doc['_rev'] ?? null;
+    $rev = null;
+    $lastResponse = '';
+
+    // Fetch current revision from any available node
+    foreach ($couchHosts as $host) {
+        $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}";
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($httpCode === 200 && $response) {
+            $doc = json_decode($response, true);
+            $rev = $doc['_rev'] ?? null;
+            break;
+        } else {
+            $lastResponse = $response;
+        }
+    }
 
     if ($rev) {
         // Prepare updated document
         $updatedDoc = [
-            "_id" => $id,
-            "_rev" => $rev,
-            "rig" => $_POST['rig'],
-            "equipment" => $_POST['equipment'],
-            "status" => $_POST['status'],
+            "_id"        => $id,
+            "_rev"       => $rev,
+            "rig"        => $_POST['rig'],
+            "equipment"  => $_POST['equipment'],
+            "status"     => $_POST['status'],
             "technician" => $_POST['technician'],
-            "timestamp" => $_POST['timestamp']
+            "timestamp"  => $_POST['timestamp']
         ];
 
-        $ch = curl_init("$url/$id");
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($updatedDoc));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        $updateResponse = curl_exec($ch);
-        $updateCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $success = false;
 
-        if ($updateCode === 201) {
-            $message = "✅ Document updated successfully!";
-            header("Refresh:2; url=index.php");
-        } else {
-            $message = "❌ Failed to update document. Response: $updateResponse";
+        // Try to update on any available node
+        foreach ($couchHosts as $host) {
+            $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}";
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($updatedDoc));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            $updateResponse = curl_exec($ch);
+            $updateCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($updateCode === 201) {
+                $message = "✅ Document updated successfully!";
+                $success = true;
+                header("Refresh:2; url=index.php");
+                break;
+            } else {
+                $lastResponse = $updateResponse;
+            }
+        }
+
+        if (!$success) {
+            $message = "❌ Failed to update document on all nodes. Last response: " . htmlspecialchars($lastResponse);
         }
     } else {
         $message = "⚠ Could not fetch document revision.";
     }
 } elseif ($id) {
-    // Fetch document for editing
-    $ch = curl_init("$url/$id");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($ch);
-    $doc = json_decode($response, true);
+    // Fetch document for editing from any available node
+    foreach ($couchHosts as $host) {
+        $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}";
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($httpCode === 200 && $response) {
+            $doc = json_decode($response, true);
+            break;
+        }
+    }
     if (!$doc) {
         $message = "⚠ Document not found.";
     }
@@ -60,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])) {
     $message = "⚠ No document ID provided.";
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -79,7 +116,6 @@ body {
     align-items: center;
     min-height: 100vh;
 }
-
 .card {
     background-color: #1f1f1f;
     padding: 40px;
@@ -89,32 +125,25 @@ body {
     width: 100%;
     text-align: center;
 }
-
 h2 {
     font-weight: 700;
     margin-bottom: 30px;
     font-size: 1.8em;
     color: #f2a900; /* gold accent */
 }
-
 .message {
     font-weight: 600;
     margin-bottom: 20px;
     font-size: 1.1em;
     color: #ff3b30;
 }
-
-form {
-    text-align: left;
-}
-
+form { text-align: left; }
 label {
     display: block;
     margin-top: 15px;
     font-weight: 500;
     color: #e0e0e0;
 }
-
 input[type="text"] {
     width: 100%;
     padding: 10px;
@@ -124,7 +153,6 @@ input[type="text"] {
     background-color: #2c2c2c;
     color: #e0e0e0;
 }
-
 .button {
     display: inline-block;
     padding: 10px 25px;
@@ -136,16 +164,13 @@ input[type="text"] {
     transition: 0.2s ease-in-out;
     margin-top: 20px;
 }
-
 .update { background-color: #0071e3; color: #fff; }
 .update:hover { background-color: #005bb5; }
-
 .back { background-color: #f2a900; color: #121212; }
 .back:hover { background-color: #d18e00; }
 </style>
 </head>
 <body>
-
 <div class="card">
     <h2>Update Document</h2>
     <?php if ($message): ?>
@@ -179,6 +204,5 @@ input[type="text"] {
         <button class="button back">← Back to Dashboard</button>
     </form>
 </div>
-
 </body>
 </html>

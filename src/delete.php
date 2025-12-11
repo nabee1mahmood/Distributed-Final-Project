@@ -1,6 +1,8 @@
 <?php
-// CouchDB connection info
-$url = "http://admin:admin@192.168.49.2:30084/testdb";
+// CouchDB cluster connection info
+$couchHosts = ["couch1", "couch2", "couch3"]; // service names from docker-compose.yml
+$couchPort  = "5984";
+$dbName     = "testdb";
 
 $message = '';
 $success = false;
@@ -9,31 +11,53 @@ $success = false;
 $id = $_POST['id'] ?? '';
 
 if ($id) {
-    // Get current revision of the document
-    $ch = curl_init("$url/$id");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $rev = null;
+    $lastResponse = '';
 
-    if ($httpCode === 200) {
-        $doc = json_decode($response, true);
-        $rev = $doc['_rev'];
-
-        // Delete the document using its revision
-        $ch = curl_init("$url/$id?rev=$rev");
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+    // First: try to fetch the document from any available node
+    foreach ($couchHosts as $host) {
+        $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}";
+        $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        $deleteResponse = curl_exec($ch);
-        $deleteCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($deleteCode === 200) {
-            $message = "✅ Document deleted successfully!";
-            $success = true;
-            header("Refresh:2; url=index.php"); // 2s delay for animation
+        if ($httpCode === 200 && $response) {
+            $doc = json_decode($response, true);
+            if (isset($doc['_rev'])) {
+                $rev = $doc['_rev'];
+                break; // found the document
+            }
         } else {
-            $message = "❌ Failed to delete document. Response: $deleteResponse";
+            $lastResponse = $response;
+        }
+    }
+
+    if ($rev) {
+        // Second: try to delete the document on any available node
+        foreach ($couchHosts as $host) {
+            $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}?rev={$rev}";
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            $deleteResponse = curl_exec($ch);
+            $deleteCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            if ($deleteCode === 200) {
+                $message = "✅ Document deleted successfully!";
+                $success = true;
+                // Delay redirect so animation can play
+                header("Refresh:2; url=index.php");
+                break;
+            } else {
+                $lastResponse = $deleteResponse;
+            }
+        }
+
+        if (!$success) {
+            $message = "❌ Failed to delete document on all nodes. Last response: " . htmlspecialchars($lastResponse);
         }
     } else {
         $message = "⚠ Document not found or error fetching document.";
@@ -42,7 +66,6 @@ if ($id) {
     $message = "⚠ No document ID provided.";
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,7 +84,6 @@ body {
     align-items: center;
     min-height: 100vh;
 }
-
 .card {
     background-color: #1f1f1f;
     padding: 40px;
@@ -72,14 +94,12 @@ body {
     text-align: center;
     animation: fadeInScale 0.6s ease forwards;
 }
-
 h2 {
     font-weight: 700;
     margin-bottom: 30px;
     font-size: 1.8em;
     color: #f2a900; /* gold accent */
 }
-
 .message {
     font-weight: 600;
     margin-bottom: 20px;
@@ -89,7 +109,6 @@ h2 {
     animation: fadeIn 1s ease forwards;
     animation-delay: 0.3s;
 }
-
 a {
     display: inline-block;
     margin-top: 20px;
@@ -100,12 +119,10 @@ a {
     transition: color 0.2s ease-in-out;
 }
 a:hover { color: #005bb5; }
-
 @keyframes fadeInScale {
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
 }
-
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -113,12 +130,10 @@ a:hover { color: #005bb5; }
 </style>
 </head>
 <body>
-
 <div class="card">
     <h2>Delete Document</h2>
     <p class="message"><?php echo htmlspecialchars($message); ?></p>
     <a href="index.php">← Back to Dashboard</a>
 </div>
-
 </body>
 </html>
