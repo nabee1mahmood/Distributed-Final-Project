@@ -6,17 +6,18 @@ $dbName     = "testdb";
 
 $message = '';
 $doc = null;
+$offlineMode = false;
 
-// Get the document ID from POST
+// Get the document ID from POST (or keep empty)
 $id = $_POST['id'] ?? '';
 
 // If form submitted with updated data
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])) {
-    $id = $_POST['id'];
+    $id = $_POST['id'] ?? $id;
     $rev = null;
     $lastResponse = '';
 
-    // Fetch current revision from any available node
+    // Try to fetch current revision from any available node
     foreach ($couchHosts as $host) {
         $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}";
         $ch = curl_init($url);
@@ -71,12 +72,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])) {
         }
 
         if (!$success) {
-            $message = "❌ Failed to update document on all nodes. Last response: " . htmlspecialchars($lastResponse);
+            $offlineMode = true;
+            $message = "⚠ Cluster unavailable. Switching to offline update.";
         }
     } else {
-        $message = "⚠ Could not fetch document revision.";
+        $offlineMode = true;
+        $message = "⚠ Could not fetch document revision. Attempting offline update.";
     }
-} elseif ($id) {
+} elseif (!empty($id)) {
     // Fetch document for editing from any available node
     foreach ($couchHosts as $host) {
         $url = "http://admin:admin@{$host}:{$couchPort}/{$dbName}/{$id}";
@@ -92,7 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])) {
         }
     }
     if (!$doc) {
-        $message = "⚠ Document not found.";
+        $offlineMode = true;
+        $message = "⚠ Document not found on cluster. Attempting offline edit.";
     }
 } else {
     $message = "⚠ No document ID provided.";
@@ -129,7 +133,7 @@ h2 {
     font-weight: 700;
     margin-bottom: 30px;
     font-size: 1.8em;
-    color: #f2a900; /* gold accent */
+    color: #f2a900;
 }
 .message {
     font-weight: 600;
@@ -168,6 +172,11 @@ input[type="text"] {
 .update:hover { background-color: #005bb5; }
 .back { background-color: #f2a900; color: #121212; }
 .back:hover { background-color: #d18e00; }
+.offline-note {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #ffb74d;
+}
 </style>
 </head>
 <body>
@@ -177,9 +186,9 @@ input[type="text"] {
         <p class="message"><?php echo htmlspecialchars($message); ?></p>
     <?php endif; ?>
 
-    <?php if ($doc): ?>
-        <form method="post" action="update.php">
-            <input type="hidden" name="id" value="<?php echo htmlspecialchars($doc['_id']); ?>">
+    <?php if ($doc || ($offlineMode && !empty($id))): ?>
+        <form method="post" action="update.php" id="update-form">
+            <input type="hidden" name="id" value="<?php echo htmlspecialchars($doc['_id'] ?? $id); ?>">
 
             <label for="rig">Rig</label>
             <input type="text" id="rig" name="rig" value="<?php echo htmlspecialchars($doc['rig'] ?? ''); ?>">
@@ -198,11 +207,67 @@ input[type="text"] {
 
             <button class="button update" type="submit">Save Changes</button>
         </form>
+        <?php if ($offlineMode): ?>
+            <p class="offline-note">You are editing locally. Changes will sync when CouchDB is reachable.</p>
+        <?php endif; ?>
     <?php endif; ?>
 
     <form method="get" action="index.php">
         <button class="button back">← Back to Dashboard</button>
     </form>
 </div>
+
+<?php if ($offlineMode): ?>
+<!-- Offline update via PouchDB -->
+<script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+<script>
+const localDB = new PouchDB('testdb');
+(async () => {
+    try {
+        const id = <?php echo json_encode($id); ?>;
+
+        // If just viewing the form (GET), load local doc data into fields
+        <?php if (!($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig']))): ?>
+        try {
+            const localDoc = await localDB.get(id);
+            document.querySelector('#rig').value = localDoc.rig || '';
+            document.querySelector('#equipment').value = localDoc.equipment || '';
+            document.querySelector('#status').value = localDoc.status || '';
+            document.querySelector('#technician').value = localDoc.technician || '';
+            document.querySelector('#timestamp').value = localDoc.timestamp || '';
+        } catch (e) {
+            // No local doc found; keep fields as-is
+            console.warn('Local doc not found:', e);
+        }
+        <?php endif; ?>
+
+        // If this page was submitted (POST) but cluster failed, persist changes locally
+        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rig'])): ?>
+        const updated = {
+            _id: id,
+            // Fetch latest local _rev if exists, else allow PouchDB to create new
+            ...(await localDB.get(id).catch(() => ({ _id: id }))),
+            rig: <?php echo json_encode($_POST['rig']); ?>,
+            equipment: <?php echo json_encode($_POST['equipment']); ?>,
+            status: <?php echo json_encode($_POST['status']); ?>,
+            technician: <?php echo json_encode($_POST['technician']); ?>,
+            timestamp: <?php echo json_encode($_POST['timestamp']); ?>
+        };
+        // Ensure _rev is preserved if present
+        if (updated._rev) {
+            await localDB.put(updated);
+        } else {
+            // Create new local doc if it doesn't exist yet
+            await localDB.put(updated);
+        }
+        document.querySelector('.message').textContent = "✅ Document updated locally. It will sync when CouchDB is reachable.";
+        <?php endif; ?>
+    } catch (err) {
+        document.querySelector('.message').textContent = "❌ Offline update failed: " + err;
+        console.error(err);
+    }
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>

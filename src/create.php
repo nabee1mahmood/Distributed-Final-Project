@@ -5,6 +5,7 @@ $couchPort  = "5984";
 $dbName     = "testdb";
 
 $message = '';
+$offlineMode = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rig        = $_POST['rig'] ?? '';
@@ -50,14 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$success) {
-            $message = "❌ Failed to create record on all nodes. Last response: " . htmlspecialchars($lastResponse);
+            // Switch to offline mode
+            $offlineMode = true;
+            $message = "⚠ Cluster unavailable. Switching to offline insert.";
         }
     } else {
         $message = "⚠ Rig, Equipment, Status, and Technician are required!";
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,6 +87,8 @@ a:hover { color:#005bb5; }
 
 <?php if($message): ?><p class="message"><?php echo $message; ?></p><?php endif; ?>
 
+<?php if(!$offlineMode): ?>
+<!-- Normal server-side insert form -->
 <form method="post">
     <input type="text" name="rig" placeholder="Rig Name" required>
     <input type="text" name="equipment" placeholder="Equipment" required>
@@ -101,6 +105,61 @@ a:hover { color:#005bb5; }
 
     <button type="submit">Create</button>
 </form>
+<?php else: ?>
+<!-- Offline insert form using PouchDB -->
+<form id="pouchForm">
+    <input type="text" name="rig" placeholder="Rig Name" required>
+    <input type="text" name="equipment" placeholder="Equipment" required>
+    <select name="status" required>
+        <option value="">Select Status</option>
+        <option value="Operational">Operational</option>
+        <option value="Maintenance">Maintenance</option>
+        <option value="Offline">Offline</option>
+        <option value="Inspection">Inspection</option>
+    </select>
+    <input type="text" name="technician" placeholder="Technician" required>
+    <textarea name="notes" placeholder="Notes"></textarea>
+    <input type="datetime-local" name="timestamp" value="<?php echo date('Y-m-d\TH:i'); ?>">
+
+    <button type="submit">Insert Offline</button>
+</form>
+<div id="result" class="message"></div>
+
+<!-- Load PouchDB -->
+<script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+<script>
+const localDB = new PouchDB('testdb');
+const remoteDB = new PouchDB('http://admin:admin@localhost:8080/couchdb/testdb');
+
+// Continuous sync
+localDB.sync(remoteDB, { live: true, retry: true })
+    .on('change', info => console.log('Change detected:', info))
+    .on('paused', () => console.log('Replication paused'))
+    .on('active', () => console.log('Replication resumed'))
+    .on('error', err => console.error('Sync error:', err));
+
+document.getElementById('pouchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const doc = {
+        _id: new Date().toISOString(),
+        rig: form.rig.value,
+        equipment: form.equipment.value,
+        status: form.status.value,
+        technician: form.technician.value,
+        notes: form.notes.value,
+        timestamp: form.timestamp.value
+    };
+    try {
+        await localDB.put(doc);
+        document.getElementById('result').textContent = "✅ Record stored locally. It will sync when CouchDB is reachable.";
+        form.reset();
+    } catch (err) {
+        document.getElementById('result').textContent = "❌ Error inserting record: " + err;
+    }
+});
+</script>
+<?php endif; ?>
 
 <a href="index.php">← Back to Dashboard</a>
 </div>

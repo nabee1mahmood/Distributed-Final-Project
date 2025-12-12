@@ -1,6 +1,8 @@
 <?php
-// Include read.php to fetch CouchDB data
-$items = include 'read.php';
+// Include read.php to fetch CouchDB data or offline flag
+$result = include 'read.php';
+$offlineMode = $result['offline'];
+$items = $result['docs'];
 ?>
 
 <!DOCTYPE html>
@@ -19,7 +21,6 @@ h1 { text-align:center; margin-top:50px; font-size:2.5em; color:#f2a900; letter-
 .update { background:#0071e3; color:#fff; } .update:hover { background:#005bb5; }
 .delete { background:#ff3b30; color:#fff; } .delete:hover { background:#cc2a24; }
 .cluster { background:#6c63ff; color:#fff; } .cluster:hover { background:#4b42cc; }
-.pouch { background:#00c853; color:#fff; } .pouch:hover { background:#009624; }
 table { width:100%; border-collapse:collapse; margin-top:20px; font-size:0.95em; color:#e0e0e0; }
 th,td { text-align:left; padding:12px 15px; }
 th { background:#2c2c2c; font-weight:600; }
@@ -27,6 +28,7 @@ tr { border-bottom:1px solid #333; }
 tr:nth-child(even){ background:#1a1a1a; }
 td form { display:inline-block; }
 #pouchdb-status { margin-top:20px; padding:15px; background:#2c2c2c; border-radius:10px; font-size:0.9em; }
+.offline-banner { margin:20px auto; padding:15px; background:#ff9800; color:#121212; border-radius:10px; text-align:center; font-weight:600; }
 </style>
 </head>
 <body>
@@ -36,15 +38,16 @@ td form { display:inline-block; }
 <div class="container">
     <div style="text-align:center;">
         <form method="post" action="create.php" style="display:inline-block;">
-            <button class="button create">Add Maintenance Record (Server)</button>
+            <button class="button create">Add Maintenance Record</button>
         </form>
         <form method="get" action="cluster.php" style="display:inline-block;">
             <button class="button cluster">View Cluster</button>
         </form>
-        <form method="get" action="offlineinsert.php" style="display:inline-block;">
-            <button class="button pouch">Add Record via PouchDB (Offline‑First)</button>
-        </form>
     </div>
+
+    <?php if ($offlineMode): ?>
+        <div class="offline-banner">⚠ Offline Mode: CouchDB cluster not reachable. Showing local records.</div>
+    <?php endif; ?>
 
     <table>
         <thead>
@@ -57,8 +60,8 @@ td form { display:inline-block; }
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
-            <?php if (!empty($items)): ?>
+        <tbody id="records-body">
+            <?php if (!$offlineMode && !empty($items)): ?>
                 <?php foreach($items as $item): ?>
                     <tr>
                         <td><?php echo htmlspecialchars($item['rig']); ?></td>
@@ -78,6 +81,9 @@ td form { display:inline-block; }
                         </td>
                     </tr>
                 <?php endforeach; ?>
+            <?php elseif ($offlineMode): ?>
+                <!-- Placeholder row until JS fills with local docs -->
+                <tr><td colspan="6" style="text-align:center; padding:30px;">Loading local records…</td></tr>
             <?php else: ?>
                 <tr><td colspan="6" style="text-align:center; padding:30px;">No records found.</td></tr>
             <?php endif; ?>
@@ -109,6 +115,35 @@ localDB.sync(remoteDB, { live: true, retry: true })
     .on('error', err => { document.getElementById('sync-log').textContent = 'Sync error: ' + err; });
 
 updateDocCount();
+
+// Offline mode: populate table from local PouchDB
+<?php if ($offlineMode): ?>
+localDB.allDocs({include_docs:true}).then(result => {
+    const tbody = document.getElementById('records-body');
+    tbody.innerHTML = '';
+    result.rows.forEach(row => {
+        const doc = row.doc;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${doc.rig||''}</td>
+            <td>${doc.equipment||''}</td>
+            <td>${doc.status||''}</td>
+            <td>${doc.technician||''}</td>
+            <td>${doc.timestamp||''}</td>
+            <td>
+                <form method="post" action="update.php">
+                    <input type="hidden" name="id" value="${doc._id}">
+                    <button class="button update">Update</button>
+                </form>
+                <form method="post" action="delete.php" onsubmit="return confirm('Are you sure?');">
+                    <input type="hidden" name="id" value="${doc._id}">
+                    <button class="button delete">Delete</button>
+                </form>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+});
+<?php endif; ?>
 </script>
 
 </body>

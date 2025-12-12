@@ -30,7 +30,7 @@ if ($response !== false) {
             if (!empty($row['doc'])) {
                 $doc = $row['doc'];
                 $items[] = [
-                    'id'         => $doc['_id'],
+                    'id'         => $doc['_id'] ?? '',
                     'rig'        => $doc['rig'] ?? '',
                     'equipment'  => $doc['equipment'] ?? '',
                     'status'     => $doc['status'] ?? '',
@@ -41,7 +41,16 @@ if ($response !== false) {
             }
         }
     }
+
+    // Online mode
+    return [
+        'offline' => false,
+        'docs'    => $items
+    ];
 }
 
-return $items;
-?>
+// Offline mode
+return [
+    'offline' => true,
+    'docs'    => []
+];

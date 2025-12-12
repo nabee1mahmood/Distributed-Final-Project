@@ -6,6 +6,7 @@ $dbName     = "testdb";
 
 $message = '';
 $success = false;
+$offlineMode = false;
 
 // Get the document ID from POST
 $id = $_POST['id'] ?? '';
@@ -48,7 +49,6 @@ if ($id) {
             if ($deleteCode === 200) {
                 $message = "✅ Document deleted successfully!";
                 $success = true;
-                // Delay redirect so animation can play
                 header("Refresh:2; url=index.php");
                 break;
             } else {
@@ -57,10 +57,12 @@ if ($id) {
         }
 
         if (!$success) {
-            $message = "❌ Failed to delete document on all nodes. Last response: " . htmlspecialchars($lastResponse);
+            $offlineMode = true;
+            $message = "⚠ Cluster unavailable. Switching to offline delete.";
         }
     } else {
-        $message = "⚠ Document not found or error fetching document.";
+        $offlineMode = true;
+        $message = "⚠ Document not found on cluster. Attempting offline delete.";
     }
 } else {
     $message = "⚠ No document ID provided.";
@@ -98,7 +100,7 @@ h2 {
     font-weight: 700;
     margin-bottom: 30px;
     font-size: 1.8em;
-    color: #f2a900; /* gold accent */
+    color: #f2a900;
 }
 .message {
     font-weight: 600;
@@ -135,5 +137,22 @@ a:hover { color: #005bb5; }
     <p class="message"><?php echo htmlspecialchars($message); ?></p>
     <a href="index.php">← Back to Dashboard</a>
 </div>
+
+<?php if ($offlineMode): ?>
+<!-- Offline delete via PouchDB -->
+<script src="https://cdn.jsdelivr.net/npm/pouchdb@9.0.0/dist/pouchdb.min.js"></script>
+<script>
+const localDB = new PouchDB('testdb');
+(async () => {
+    try {
+        const doc = await localDB.get("<?php echo $id; ?>");
+        await localDB.remove(doc);
+        document.querySelector('.message').textContent = "✅ Document deleted locally. It will sync when CouchDB is reachable.";
+    } catch (err) {
+        document.querySelector('.message').textContent = "❌ Offline delete failed: " + err;
+    }
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
