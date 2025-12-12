@@ -1,0 +1,10 @@
+Run Commands:
+docker stop couch1 couch2 couch3
+
+Perform Insert on WebGUI
+Click View Cluster to show Container offline
+
+docker start couch1 couch2 couch3
+
+Wait a second for the offline sync, and then ensure that View Cluster
+shows the correct number of docs post update

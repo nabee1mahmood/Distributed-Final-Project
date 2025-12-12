@@ -1,9 +1,0 @@
-Run Commands:
-docker stop (couch1, couch2, or couch3)
-
-Perform Insert on WebGUI
-Click View Cluster to show Container offline
-
-run docker start (couch1, couch2, or couch3, whichever you ran before)
-
-View Cluster to ensure that container received document updates
