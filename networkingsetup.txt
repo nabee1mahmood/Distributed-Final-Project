@@ -5,3 +5,10 @@ docker network connect couchnet nginx-php-1
 This adds all 3 containers to the docker network that is
 hosting the cluster, making the cluster reachable from the
 nginx containers.
+
+IF YOU ALREADY HAVE NGINX SETUP:
+Run:
+docker exec <containername-nginx-1> nginx -s reload
+docker restart <containername-nginx-1>
+
+this is because of the updated config to account for pouchdb
