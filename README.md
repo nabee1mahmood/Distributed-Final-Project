@@ -19,5 +19,6 @@ This was our report detailing the step by step to bring the system and the comma
 
 
 
+
 ### Conclusion:
 This project demonstrates the implementation of a distributed NoSQL system using CouchDB. A multi-node CouchDB cluster was deployed using Docker, with high availability, horizontal scalability, and multi-master replication. An NGINX web server was configured to act as a single access point and load balancer for the cluster, while a web-based CRUD application was used to interact with the database.
