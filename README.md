@@ -1,16 +1,27 @@
 # Distributed CouchDB NoSQL Cluster
 
 ### Introduction
-This was a final project in our distributed system course where we got into groups and  the goal was to create a distributed system using OpenSuSE Linux, and each team was given a NoSQL system and we had to use CRUD operations (Create, Read, Update, and Delete). 
+This project was completed as the final project for our **Distributed Systems** course. We worked in teams to design and deploy a **distributed system on OpenSUSE Linux**, where each team was assigned a **NoSQL database**. The system was required to support full **CRUD operations (Create, Read, Update, and Delete)** through an application interface, demonstrating core distributed systems concepts such as data distribution, replication, and fault tolerance.
 
 
 Our team was assigned CouchDB, a distributed NoSQL database designed for high availability, fault tolerance, offline functionality, and multi-master replication. We deployed a multi-node CouchDB cluster using Docker, allowing data to be automatically replicated and sharded across multiple nodes. A frontend application interacts with the cluster through a single entry point, demonstrating a distributed system.
 
 
 ### Tools and Technologies Used
-- Docker:
-- PouchDB: (used for offline storage)
-- NGINX (used for the web server to direct when an operation was requested to send it to the correct container
+- **Docker**  
+  Used to containerize CouchDB nodes.
+
+- **CouchDB**  
+  A distributed NoSQL database used to store JSON documents with built-in support for replication, sharding, and multi-master architecture.
+
+- **PouchDB**  
+  Used for **offline-first storage**, allowing data to be stored locally when offline.
+
+- **NGINX**  
+  Used for routing incoming CRUD requests to the appropriate CouchDB node and acting as a single access point for the cluster.
+
+- **OpenSUSE Linux**  
+  The primary operating system used for the development and deployment of the distributed system.
 
 
 
