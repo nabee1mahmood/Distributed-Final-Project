@@ -18,6 +18,11 @@ Our team was assigned CouchDB, a distributed NoSQL database designed for high av
 This was our report detailing the step by step to bring the system and the commands required.
 
 
+📄 **[View the Final Project Report (PDF)](DistributedFinalProject.pdf)**
+
+
+
+
 
 
 ### Conclusion:
